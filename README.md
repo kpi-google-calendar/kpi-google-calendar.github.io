@@ -47,3 +47,5 @@ GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com npm run build:github
 Це неофіційний студентський інструмент. Перед важливими заняттями варто звірятися з [офіційним розкладом](https://schedule.kpi.ua/).
 
 Контакти: [roman.tkachenko.vv@gmail.com](mailto:roman.tkachenko.vv@gmail.com), Telegram [@TkachenkoRV](https://t.me/TkachenkoRV).
+
+Фонове фото: [Valentinovna, «Головний корпус КПІ (№1)»](https://commons.wikimedia.org/wiki/File:%D0%93%D0%BE%D0%BB%D0%BE%D0%B2%D0%BD%D0%B8%D0%B9_%D0%BA%D0%BE%D1%80%D0%BF%D1%83%D1%81_%D0%9A%D0%9F%D0%86_(%E2%84%961).JPG), ліцензія [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). Фото кадровано й оптимізовано у WebP для вебсайту.

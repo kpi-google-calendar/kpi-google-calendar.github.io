@@ -377,6 +377,7 @@ export default function Home() {
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <a href="mailto:roman.tkachenko.vv@gmail.com" className="hover:text-foreground">roman.tkachenko.vv@gmail.com</a>
           <a href="https://t.me/TkachenkoRV" target="_blank" rel="noreferrer" className="hover:text-foreground">Telegram @TkachenkoRV</a>
+          <a href="https://commons.wikimedia.org/wiki/File:%D0%93%D0%BE%D0%BB%D0%BE%D0%B2%D0%BD%D0%B8%D0%B9_%D0%BA%D0%BE%D1%80%D0%BF%D1%83%D1%81_%D0%9A%D0%9F%D0%86_(%E2%84%961).JPG" target="_blank" rel="noreferrer" className="hover:text-foreground">Фото: Valentinovna · CC BY-SA 3.0</a>
           {/* oxlint-disable-next-line next/no-html-link-for-pages -- GitHub Pages uses static routes. */}
           <a href="/privacy/" className="hover:text-foreground">Приватність</a>
           {/* oxlint-disable-next-line next/no-html-link-for-pages -- GitHub Pages uses static routes. */}
