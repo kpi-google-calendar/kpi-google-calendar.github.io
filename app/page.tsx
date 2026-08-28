@@ -88,8 +88,8 @@ export default function Home() {
 
   useEffect(() => {
     if (window.google) {
-      setGoogleReady(true);
-      return;
+      const timer = window.setTimeout(() => setGoogleReady(true), 0);
+      return () => window.clearTimeout(timer);
     }
     const existing = document.querySelector<HTMLScriptElement>('script[data-google-identity]');
     if (existing) {
@@ -114,6 +114,10 @@ export default function Home() {
     if (!schedule || !selectedGroup || !currentTime || !startDate || !endDate || startDate > endDate) return [];
     return buildCalendarEvents(schedule, selectedGroup, startDate, endDate, currentTime);
   }, [schedule, selectedGroup, currentTime, startDate, endDate]);
+  const lessonCount = useMemo(
+    () => calendarEvents.reduce((total, event) => total + event.occurrenceCount, 0),
+    [calendarEvents],
+  );
 
   const step = phase === 'group' ? 1 : phase === 'done' ? 3 : 2;
 
@@ -294,14 +298,14 @@ export default function Home() {
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Крок 2</p>
                   <h2 className="mt-2 text-2xl font-bold tracking-[-0.035em]">{selectedGroup.name}</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">{selectedGroup.faculty} · {calendarEvents.length} подій</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{selectedGroup.faculty} · {lessonCount} занять · {calendarEvents.length} серій</p>
                 </div>
                 <span className="step-icon"><CalendarCheck /></span>
               </div>
 
               <div className="mt-6 grid grid-cols-2 gap-3">
-                <label className="date-field">Початок<Input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} disabled={phase !== 'review'} /></label>
-                <label className="date-field">Кінець<Input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} disabled={phase !== 'review'} /></label>
+                <label className="date-field" htmlFor="start-date">Початок<Input id="start-date" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} disabled={phase !== 'review'} /></label>
+                <label className="date-field" htmlFor="end-date">Кінець<Input id="end-date" type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} disabled={phase !== 'review'} /></label>
               </div>
               <p className="mt-2 text-[11px] leading-5 text-muted-foreground">Період можна змінити. Нерегулярні заняття додаються лише на дати, указані в розкладі КПІ.</p>
 
@@ -318,7 +322,7 @@ export default function Home() {
 
               {phase === 'importing' && (
                 <div className="mt-5">
-                  <div className="mb-2 flex justify-between text-xs font-semibold"><span>Додаємо заняття…</span><span>{progress.completed} / {progress.total}</span></div>
+                  <div className="mb-2 flex justify-between text-xs font-semibold"><span>Додаємо серії занять…</span><span>{progress.completed} / {progress.total}</span></div>
                   <div className="progress-track"><span style={{ width: `${progress.total ? (progress.completed / progress.total) * 100 : 0}%` }} /></div>
                 </div>
               )}
@@ -334,7 +338,7 @@ export default function Home() {
             <div className="p-5 text-center sm:p-8">
               <span className="success-icon"><Check /></span>
               <p className="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-emerald-300">Імпорт завершено</p>
-              <h2 className="mt-2 text-2xl font-bold tracking-[-0.035em]">{progress.completed} занять у календарі</h2>
+              <h2 className="mt-2 text-2xl font-bold tracking-[-0.035em]">{lessonCount} занять у календарі</h2>
               <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-muted-foreground">Створено окремий календар «Розклад {selectedGroup.name} · КПІ». Його можна вимкнути або видалити в Google Calendar.</p>
               <a href="https://calendar.google.com/calendar/u/0/r" target="_blank" rel="noreferrer" className="mt-7 inline-flex h-13 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-base font-bold text-primary-foreground transition hover:bg-primary/90">
                 Відкрити Google Calendar <ExternalLink className="size-4" />
@@ -373,7 +377,9 @@ export default function Home() {
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <a href="mailto:roman.tkachenko.vv@gmail.com" className="hover:text-foreground">roman.tkachenko.vv@gmail.com</a>
           <a href="https://t.me/TkachenkoRV" target="_blank" rel="noreferrer" className="hover:text-foreground">Telegram @TkachenkoRV</a>
+          {/* oxlint-disable-next-line next/no-html-link-for-pages -- GitHub Pages uses static routes. */}
           <a href="/privacy/" className="hover:text-foreground">Приватність</a>
+          {/* oxlint-disable-next-line next/no-html-link-for-pages -- GitHub Pages uses static routes. */}
           <a href="/terms/" className="hover:text-foreground">Умови</a>
           <a href="https://github.com/kpi-google-calendar/kpi-google-calendar.github.io" target="_blank" rel="noreferrer" className="hover:text-foreground">GitHub</a>
         </div>

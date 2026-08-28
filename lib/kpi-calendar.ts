@@ -38,6 +38,8 @@ export type CalendarEvent = {
   description: string;
   colorId?: string;
   location?: string;
+  recurrence?: string[];
+  occurrenceCount: number;
   start: { dateTime: string; timeZone: string };
   end: { dateTime: string; timeZone: string };
   reminders: { useDefault: boolean };
@@ -168,6 +170,7 @@ function pairToEvent(pair: Pair, date: string, group: Group): CalendarEvent {
     description: details.join('\n'),
     ...(colorId ? { colorId } : {}),
     ...(pair.location?.title ? { location: pair.location.title } : {}),
+    occurrenceCount: 1,
     start: {
       dateTime: `${date}T${pair.time}`,
       timeZone: KYIV_TIME_ZONE,
@@ -194,7 +197,7 @@ export function buildCalendarEvents(
   const start = parseDate(startDate);
   const end = parseDate(endDate);
   const anchorUtc = new Date(Date.UTC(anchor.getFullYear(), anchor.getMonth(), anchor.getDate()));
-  const events: CalendarEvent[] = [];
+  const occurrences = new Map<string, { pair: Pair; dates: string[] }>();
   const seen = new Set<string>();
 
   for (const cursor = new Date(start); cursor <= end; cursor.setUTCDate(cursor.getUTCDate() + 1)) {
@@ -212,9 +215,42 @@ export function buildCalendarEvents(
       const signature = [date, pair.time, pair.name, pair.type, pair.lecturer?.name, pair.location?.title].join('|');
       if (seen.has(signature)) continue;
       seen.add(signature);
-      events.push(pairToEvent(pair, date, group));
+      const seriesKey = [
+        week,
+        weekday,
+        pair.time,
+        pair.name,
+        pair.type,
+        pair.tag,
+        pair.lecturer?.id,
+        pair.lecturer?.name,
+        pair.location?.uri,
+        pair.location?.title,
+        [...pair.dates].sort().join(','),
+      ].join('|');
+      const series = occurrences.get(seriesKey) || { pair, dates: [] };
+      series.dates.push(date);
+      occurrences.set(seriesKey, series);
     }
   }
+
+  const events = [...occurrences.values()].map(({ pair, dates }) => {
+    const sortedDates = dates.sort();
+    const event = pairToEvent(pair, sortedDates[0], group);
+    event.occurrenceCount = sortedDates.length;
+
+    if (sortedDates.length > 1) {
+      const isBiweekly = sortedDates.slice(1).every((date, index) => (
+        parseDate(date).getTime() - parseDate(sortedDates[index]).getTime()
+      ) === 14 * 24 * 60 * 60 * 1_000);
+
+      event.recurrence = isBiweekly
+        ? [`RRULE:FREQ=WEEKLY;INTERVAL=2;COUNT=${sortedDates.length}`]
+        : [`RDATE;TZID=${KYIV_TIME_ZONE}:${sortedDates.slice(1).map((date) => `${date.replaceAll('-', '')}T${pair.time.replaceAll(':', '')}`).join(',')}`];
+    }
+
+    return event;
+  });
 
   return events.sort((a, b) => a.start.dateTime.localeCompare(b.start.dateTime));
 }
@@ -239,7 +275,7 @@ export async function googleRequest<T>(accessToken: string, path: string, init: 
       headers: {
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
-        ...init.headers,
+        ...Object.fromEntries(new Headers(init.headers).entries()),
       },
     });
 
@@ -295,6 +331,8 @@ export async function importIntoGoogleCalendar(
   onProgress: (completed: number, total: number) => void,
 ) {
   const storageKey = `kpi-calendar:${group.id}`;
+  const formatKey = `${storageKey}:format`;
+  const recurringFormat = 'recurring-v1';
   let calendarId = localStorage.getItem(storageKey);
 
   if (calendarId) {
@@ -303,10 +341,16 @@ export async function importIntoGoogleCalendar(
     } catch {
       calendarId = null;
       localStorage.removeItem(storageKey);
+      localStorage.removeItem(formatKey);
     }
   }
 
-  if (!calendarId) {
+  const legacyCalendarId = calendarId && localStorage.getItem(formatKey) !== recurringFormat
+    ? calendarId
+    : null;
+  let createdCalendarId: string | null = null;
+
+  if (!calendarId || legacyCalendarId) {
     const calendar = await googleRequest<{ id: string }>(accessToken, '/calendars', {
       method: 'POST',
       body: JSON.stringify({
@@ -316,30 +360,47 @@ export async function importIntoGoogleCalendar(
       }),
     });
     calendarId = calendar.id;
-    localStorage.setItem(storageKey, calendarId);
+    createdCalendarId = calendarId;
   }
 
-  const existing = await googleRequest<{ items?: { id: string }[] }>(
-    accessToken,
-    `/calendars/${encodeURIComponent(calendarId)}/events?maxResults=2500&showDeleted=false`,
-  );
   const paceGoogleWrite = createGoogleWritePacer();
-  await mapWithConcurrency(existing.items || [], GOOGLE_WRITE_CONCURRENCY, async (event) => {
-    await paceGoogleWrite();
-    await googleRequest(accessToken, `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(event.id)}`, { method: 'DELETE' });
-  });
+  try {
+    if (!createdCalendarId) {
+      const existing = await googleRequest<{ items?: { id: string }[] }>(
+        accessToken,
+        `/calendars/${encodeURIComponent(calendarId)}/events?maxResults=2500&showDeleted=false`,
+      );
+      await mapWithConcurrency(existing.items || [], GOOGLE_WRITE_CONCURRENCY, async (event) => {
+        await paceGoogleWrite();
+        await googleRequest(accessToken, `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(event.id)}`, { method: 'DELETE' });
+      });
+    }
 
-  let completed = 0;
-  onProgress(0, events.length);
-  await mapWithConcurrency(events, GOOGLE_WRITE_CONCURRENCY, async (event) => {
-    await paceGoogleWrite();
-    await googleRequest(accessToken, `/calendars/${encodeURIComponent(calendarId)}/events`, {
-      method: 'POST',
-      body: JSON.stringify(event),
+    let completed = 0;
+    onProgress(0, events.length);
+    await mapWithConcurrency(events, GOOGLE_WRITE_CONCURRENCY, async (event) => {
+      await paceGoogleWrite();
+      const { occurrenceCount: _occurrenceCount, ...googleEvent } = event;
+      await googleRequest(accessToken, `/calendars/${encodeURIComponent(calendarId)}/events`, {
+        method: 'POST',
+        body: JSON.stringify(googleEvent),
+      });
+      completed += 1;
+      onProgress(completed, events.length);
     });
-    completed += 1;
-    onProgress(completed, events.length);
-  });
+
+    localStorage.setItem(storageKey, calendarId);
+    localStorage.setItem(formatKey, recurringFormat);
+
+    if (legacyCalendarId) {
+      await googleRequest(accessToken, `/calendars/${encodeURIComponent(legacyCalendarId)}`, { method: 'DELETE' }).catch(() => undefined);
+    }
+  } catch (error) {
+    if (createdCalendarId) {
+      await googleRequest(accessToken, `/calendars/${encodeURIComponent(createdCalendarId)}`, { method: 'DELETE' }).catch(() => undefined);
+    }
+    throw error;
+  }
 
   return calendarId;
 }
