@@ -309,6 +309,11 @@ export default function Home() {
                 <div className="flex items-center justify-between gap-4 text-xs"><span className="font-semibold">Окремий календар</span><span className="text-primary">Розклад {selectedGroup.name} · КПІ</span></div>
                 <div className="mt-3 h-px bg-white/8" />
                 <p className="mt-3 text-xs leading-5 text-muted-foreground">Доступ поширюється лише на календарі, створені цим застосунком. Інші події Google Calendar недоступні.</p>
+                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-[11px] text-muted-foreground" aria-label="Кольори занять у Google Calendar">
+                  <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-blue-500" /> Лекції</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-red-500" /> Практики</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-yellow-400" /> Лабораторні</span>
+                </div>
               </div>
 
               {phase === 'importing' && (
@@ -366,6 +371,8 @@ export default function Home() {
       <footer className="relative z-10 mx-auto flex w-full max-w-7xl flex-col gap-3 px-5 py-7 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-10">
         <p>Неофіційний інструмент для студентів КПІ ім. Ігоря Сікорського.</p>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <a href="mailto:roman.tkachenko.vv@gmail.com" className="hover:text-foreground">roman.tkachenko.vv@gmail.com</a>
+          <a href="https://t.me/TkachenkoRV" target="_blank" rel="noreferrer" className="hover:text-foreground">Telegram @TkachenkoRV</a>
           <a href="/privacy/" className="hover:text-foreground">Приватність</a>
           <a href="/terms/" className="hover:text-foreground">Умови</a>
           <a href="https://github.com/kpi-google-calendar/kpi-google-calendar.github.io" target="_blank" rel="noreferrer" className="hover:text-foreground">GitHub</a>

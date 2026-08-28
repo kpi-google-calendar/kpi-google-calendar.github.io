@@ -36,6 +36,7 @@ export type CurrentTime = {
 export type CalendarEvent = {
   summary: string;
   description: string;
+  colorId?: string;
   location?: string;
   start: { dateTime: string; timeZone: string };
   end: { dateTime: string; timeZone: string };
@@ -52,6 +53,22 @@ const DAY_INDEX: Record<string, number> = {
   Пт: 5,
   Сб: 6,
 };
+
+const EVENT_COLOR_BY_TAG: Record<string, string> = {
+  lec: '9',
+  prac: '11',
+  lab: '5',
+};
+
+const GOOGLE_MAX_ATTEMPTS = 8;
+const GOOGLE_MAX_BACKOFF_MS = 32_000;
+const GOOGLE_WRITE_DELAY_MS = 250;
+const RETRYABLE_GOOGLE_REASONS = new Set([
+  'rateLimitExceeded',
+  'userRateLimitExceeded',
+  'quotaExceeded',
+  'backendError',
+]);
 
 const pad = (value: number) => String(value).padStart(2, '0');
 
@@ -94,6 +111,31 @@ function addMinutes(date: string, time: string, minutes: number) {
   return `${value.getUTCFullYear()}-${pad(value.getUTCMonth() + 1)}-${pad(value.getUTCDate())}T${pad(value.getUTCHours())}:${pad(value.getUTCMinutes())}:${pad(value.getUTCSeconds())}`;
 }
 
+const wait = (milliseconds: number) => new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
+
+function eventColor(pair: Pair) {
+  const taggedColor = EVENT_COLOR_BY_TAG[pair.tag.toLowerCase()];
+  if (taggedColor) return taggedColor;
+
+  const type = pair.type.toLocaleLowerCase('uk-UA');
+  if (type.includes('лек')) return '9';
+  if (type.includes('прак')) return '11';
+  if (type.includes('лаб')) return '5';
+  return undefined;
+}
+
+function retryAfterMilliseconds(value: string | null) {
+  if (!value) return null;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1_000);
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? null : Math.max(0, timestamp - Date.now());
+}
+
+function paceGoogleWrite() {
+  return wait(GOOGLE_WRITE_DELAY_MS + Math.floor(Math.random() * 150));
+}
+
 function weekForDate(date: Date, anchorDate: Date, anchorWeek: 1 | 2): 1 | 2 {
   const millisecondsPerWeek = 7 * 24 * 60 * 60 * 1000;
   const distance = Math.round((mondayOf(date).getTime() - mondayOf(anchorDate).getTime()) / millisecondsPerWeek);
@@ -102,6 +144,7 @@ function weekForDate(date: Date, anchorDate: Date, anchorWeek: 1 | 2): 1 | 2 {
 }
 
 function pairToEvent(pair: Pair, date: string, group: Group): CalendarEvent {
+  const colorId = eventColor(pair);
   const details = [
     pair.type ? `Тип: ${pair.type}` : '',
     pair.lecturer?.name ? `Викладач: ${pair.lecturer.name}` : '',
@@ -114,6 +157,7 @@ function pairToEvent(pair: Pair, date: string, group: Group): CalendarEvent {
   return {
     summary: `${pair.name}${pair.type ? ` · ${pair.type}` : ''}`,
     description: details.join('\n'),
+    ...(colorId ? { colorId } : {}),
     ...(pair.location?.title ? { location: pair.location.title } : {}),
     start: {
       dateTime: `${date}T${pair.time}`,
@@ -173,22 +217,55 @@ export async function fetchJson<T>(url: string): Promise<T> {
 }
 
 export async function googleRequest<T>(accessToken: string, path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${GOOGLE_CALENDAR_API}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-      ...init.headers,
-    },
-  });
+  type GoogleErrorPayload = {
+    error?: {
+      message?: string;
+      errors?: { reason?: string }[];
+    };
+  };
 
-  if (!response.ok) {
-    const payload = await response.json().catch(() => null) as { error?: { message?: string } } | null;
+  for (let attempt = 0; attempt < GOOGLE_MAX_ATTEMPTS; attempt += 1) {
+    const response = await fetch(`${GOOGLE_CALENDAR_API}${path}`, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        ...init.headers,
+      },
+    });
+
+    if (response.ok) {
+      if (response.status === 204) return undefined as T;
+      return response.json() as Promise<T>;
+    }
+
+    const payload = await response.json().catch(() => null) as GoogleErrorPayload | null;
+    const reasons = payload?.error?.errors?.map((item) => item.reason).filter(Boolean) || [];
+    const message = payload?.error?.message?.toLocaleLowerCase('en-US') || '';
+    const rateLimitMessage = message.includes('rate limit') || message.includes('usage limits');
+    const retryable = response.status === 429
+      || response.status >= 500
+      || (response.status === 403 && (
+        rateLimitMessage
+        || reasons.some((reason) => RETRYABLE_GOOGLE_REASONS.has(reason as string))
+      ));
+
+    if (retryable && attempt < GOOGLE_MAX_ATTEMPTS - 1) {
+      const retryAfter = retryAfterMilliseconds(response.headers.get('Retry-After'));
+      const exponential = Math.min(2 ** attempt * 1_000, GOOGLE_MAX_BACKOFF_MS);
+      const jitter = Math.floor(Math.random() * 1_000);
+      await wait(retryAfter ?? exponential + jitter);
+      continue;
+    }
+
+    if (retryable) {
+      throw new Error('Google Calendar тимчасово обмежує швидкість запитів. Зачекайте хвилину та повторіть імпорт — календар буде оновлено без дублювань.');
+    }
+
     throw new Error(payload?.error?.message || `Google Calendar повернув помилку ${response.status}.`);
   }
 
-  if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
+  throw new Error('Не вдалося завершити запит до Google Calendar. Спробуйте ще раз трохи пізніше.');
 }
 
 async function mapWithConcurrency<T>(items: T[], limit: number, task: (item: T) => Promise<void>) {
@@ -237,19 +314,21 @@ export async function importIntoGoogleCalendar(
     accessToken,
     `/calendars/${encodeURIComponent(calendarId)}/events?maxResults=2500&showDeleted=false`,
   );
-  await mapWithConcurrency(existing.items || [], 5, async (event) => {
+  await mapWithConcurrency(existing.items || [], 1, async (event) => {
     await googleRequest(accessToken, `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(event.id)}`, { method: 'DELETE' });
+    await paceGoogleWrite();
   });
 
   let completed = 0;
   onProgress(0, events.length);
-  await mapWithConcurrency(events, 5, async (event) => {
+  await mapWithConcurrency(events, 1, async (event) => {
     await googleRequest(accessToken, `/calendars/${encodeURIComponent(calendarId)}/events`, {
       method: 'POST',
       body: JSON.stringify(event),
     });
     completed += 1;
     onProgress(completed, events.length);
+    await paceGoogleWrite();
   });
 
   return calendarId;
