@@ -62,7 +62,9 @@ const EVENT_COLOR_BY_TAG: Record<string, string> = {
 
 const GOOGLE_MAX_ATTEMPTS = 8;
 const GOOGLE_MAX_BACKOFF_MS = 32_000;
-const GOOGLE_WRITE_DELAY_MS = 250;
+const GOOGLE_WRITE_CONCURRENCY = 3;
+const GOOGLE_WRITE_INTERVAL_MS = 125;
+const GOOGLE_WRITE_JITTER_MS = 50;
 const RETRYABLE_GOOGLE_REASONS = new Set([
   'rateLimitExceeded',
   'userRateLimitExceeded',
@@ -132,8 +134,15 @@ function retryAfterMilliseconds(value: string | null) {
   return Number.isNaN(timestamp) ? null : Math.max(0, timestamp - Date.now());
 }
 
-function paceGoogleWrite() {
-  return wait(GOOGLE_WRITE_DELAY_MS + Math.floor(Math.random() * 150));
+function createGoogleWritePacer() {
+  let nextWriteAt = 0;
+
+  return async () => {
+    const now = Date.now();
+    const scheduledAt = Math.max(now, nextWriteAt);
+    nextWriteAt = scheduledAt + GOOGLE_WRITE_INTERVAL_MS + Math.floor(Math.random() * GOOGLE_WRITE_JITTER_MS);
+    await wait(Math.max(0, scheduledAt - now));
+  };
 }
 
 function weekForDate(date: Date, anchorDate: Date, anchorWeek: 1 | 2): 1 | 2 {
@@ -314,21 +323,22 @@ export async function importIntoGoogleCalendar(
     accessToken,
     `/calendars/${encodeURIComponent(calendarId)}/events?maxResults=2500&showDeleted=false`,
   );
-  await mapWithConcurrency(existing.items || [], 1, async (event) => {
-    await googleRequest(accessToken, `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(event.id)}`, { method: 'DELETE' });
+  const paceGoogleWrite = createGoogleWritePacer();
+  await mapWithConcurrency(existing.items || [], GOOGLE_WRITE_CONCURRENCY, async (event) => {
     await paceGoogleWrite();
+    await googleRequest(accessToken, `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(event.id)}`, { method: 'DELETE' });
   });
 
   let completed = 0;
   onProgress(0, events.length);
-  await mapWithConcurrency(events, 1, async (event) => {
+  await mapWithConcurrency(events, GOOGLE_WRITE_CONCURRENCY, async (event) => {
+    await paceGoogleWrite();
     await googleRequest(accessToken, `/calendars/${encodeURIComponent(calendarId)}/events`, {
       method: 'POST',
       body: JSON.stringify(event),
     });
     completed += 1;
     onProgress(completed, events.length);
-    await paceGoogleWrite();
   });
 
   return calendarId;
