@@ -220,7 +220,7 @@ export default function Home() {
       <section id="top" className="hero-section relative z-10 mx-auto grid w-full max-w-7xl gap-10 px-5 pb-16 pt-10 sm:px-8 lg:min-h-[calc(100vh-7rem)] lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] lg:items-center lg:px-10 lg:pb-20 lg:pt-12">
         <div className="hero-copy max-w-2xl">
           <div className="eyebrow"><Sparkles className="size-3.5" /> 1 корпус · кампус КПІ</div>
-          <h1 className="hero-title mt-6 text-balance text-[clamp(2.75rem,7vw,5.8rem)] font-black leading-[0.92] tracking-[-0.065em]">
+          <h1 className="hero-title mt-6 text-balance text-[clamp(2.75rem,7vw,5.8rem)] font-bold leading-[0.94] tracking-[-0.055em]">
             Розклад КПІ<br /><span className="text-gradient">у Google Calendar.</span>
           </h1>
           <p className="hero-subtitle mt-7 max-w-xl text-balance text-base leading-7 sm:text-lg">
@@ -377,7 +377,6 @@ export default function Home() {
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <a href="mailto:roman.tkachenko.vv@gmail.com" className="hover:text-foreground">roman.tkachenko.vv@gmail.com</a>
           <a href="https://t.me/TkachenkoRV" target="_blank" rel="noreferrer" className="hover:text-foreground">Telegram @TkachenkoRV</a>
-          <a href="https://commons.wikimedia.org/wiki/File:%D0%93%D0%BE%D0%BB%D0%BE%D0%B2%D0%BD%D0%B8%D0%B9_%D0%BA%D0%BE%D1%80%D0%BF%D1%83%D1%81_%D0%9A%D0%9F%D0%86_(%E2%84%961).JPG" target="_blank" rel="noreferrer" className="hover:text-foreground">Фото: Valentinovna · CC BY-SA 3.0</a>
           {/* oxlint-disable-next-line next/no-html-link-for-pages -- GitHub Pages uses static routes. */}
           <a href="/privacy/" className="hover:text-foreground">Приватність</a>
           {/* oxlint-disable-next-line next/no-html-link-for-pages -- GitHub Pages uses static routes. */}
