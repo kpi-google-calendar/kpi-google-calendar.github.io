@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     siteName: 'KPI Calendar',
     locale: 'uk_UA',
     type: 'website',
-    images: [{ url: '/og.png', width: 1731, height: 909, alt: 'KPI Calendar — розклад КПІ у Google Calendar' }],
+    images: [{ url: '/og.png', width: 1200, height: 630, alt: 'KPI Calendar — розклад КПІ у Google Calendar' }],
   },
   twitter: {
     card: 'summary_large_image',
@@ -25,6 +25,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="uk">
+      <head>
+        <link rel="preload" as="image" href="/kpi-building-1-bg.webp" type="image/webp" />
+      </head>
       <body>{children}</body>
     </html>
   );

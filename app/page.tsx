@@ -202,9 +202,9 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-background text-foreground">
+    <main className="site-shell min-h-screen overflow-hidden text-foreground">
       <div className="ambient-grid" aria-hidden="true" />
-      <header className="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-5 sm:px-8 lg:px-10">
+      <header className="site-header relative z-10 mx-auto mt-4 flex w-[calc(100%-2rem)] max-w-7xl items-center justify-between px-4 py-3 sm:mt-6 sm:px-5">
         <a href="#top" className="flex items-center gap-3" aria-label="KPI Calendar — на початок">
           <span className="logo-mark"><CalendarDays /></span>
           <span>
@@ -217,13 +217,13 @@ export default function Home() {
         </a>
       </header>
 
-      <section id="top" className="relative z-10 mx-auto grid w-full max-w-7xl gap-10 px-5 pb-16 pt-8 sm:px-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] lg:items-center lg:px-10 lg:pb-24 lg:pt-16">
-        <div className="max-w-2xl">
-          <div className="eyebrow"><Sparkles className="size-3.5" /> Безкоштовно · без реєстрації</div>
-          <h1 className="mt-6 text-balance text-[clamp(2.75rem,7vw,5.8rem)] font-black leading-[0.92] tracking-[-0.065em]">
+      <section id="top" className="hero-section relative z-10 mx-auto grid w-full max-w-7xl gap-10 px-5 pb-16 pt-10 sm:px-8 lg:min-h-[calc(100vh-7rem)] lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] lg:items-center lg:px-10 lg:pb-20 lg:pt-12">
+        <div className="hero-copy max-w-2xl">
+          <div className="eyebrow"><Sparkles className="size-3.5" /> 1 корпус · кампус КПІ</div>
+          <h1 className="hero-title mt-6 text-balance text-[clamp(2.75rem,7vw,5.8rem)] font-black leading-[0.92] tracking-[-0.065em]">
             Розклад КПІ<br /><span className="text-gradient">у Google Calendar.</span>
           </h1>
-          <p className="mt-7 max-w-xl text-balance text-base leading-7 text-muted-foreground sm:text-lg">
+          <p className="hero-subtitle mt-7 max-w-xl text-balance text-base leading-7 sm:text-lg">
             Введіть групу один раз. Пари, аудиторії та викладачі з’являться в окремому календарі — акуратно й без дублювань.
           </p>
 
@@ -283,7 +283,7 @@ export default function Home() {
               )}
 
               {error && <ErrorMessage message={error} />}
-              <Button className="mt-7 h-13 w-full rounded-xl bg-primary text-base font-bold text-primary-foreground shadow-[0_12px_34px_-12px_var(--primary)] hover:bg-primary/90" disabled={!exactGroup || loadingSchedule} onClick={() => void handleFindSchedule()}>
+              <Button className="primary-action mt-7 h-13 w-full rounded-xl text-base font-bold" disabled={!exactGroup || loadingSchedule} onClick={() => void handleFindSchedule()}>
                 {loadingSchedule ? <><LoaderCircle className="animate-spin" /> Завантажуємо розклад</> : <>Знайти розклад <ArrowRight data-icon="inline-end" className="ml-1" /></>}
               </Button>
             </div>
@@ -328,7 +328,7 @@ export default function Home() {
               )}
               {phase === 'authorizing' && <p className="mt-5 flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin text-primary" /> Очікуємо підтвердження Google…</p>}
               {error && <ErrorMessage message={error} />}
-              <Button className="mt-6 h-13 w-full rounded-xl bg-primary text-base font-bold text-primary-foreground shadow-[0_12px_34px_-12px_var(--primary)] hover:bg-primary/90" disabled={phase !== 'review' || calendarEvents.length === 0 || startDate > endDate} onClick={handleAuthorize}>
+              <Button className="primary-action mt-6 h-13 w-full rounded-xl text-base font-bold" disabled={phase !== 'review' || calendarEvents.length === 0 || startDate > endDate} onClick={handleAuthorize}>
                 {phase === 'review' ? <>Увійти в Google та імпортувати <ArrowRight className="ml-1" /></> : <><LoaderCircle className="animate-spin" /> Виконуємо імпорт</>}
               </Button>
             </div>
@@ -340,7 +340,7 @@ export default function Home() {
               <p className="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-emerald-300">Імпорт завершено</p>
               <h2 className="mt-2 text-2xl font-bold tracking-[-0.035em]">{lessonCount} занять у календарі</h2>
               <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-muted-foreground">Створено окремий календар «Розклад {selectedGroup.name} · КПІ». Його можна вимкнути або видалити в Google Calendar.</p>
-              <a href="https://calendar.google.com/calendar/u/0/r" target="_blank" rel="noreferrer" className="mt-7 inline-flex h-13 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-base font-bold text-primary-foreground transition hover:bg-primary/90">
+              <a href="https://calendar.google.com/calendar/u/0/r" target="_blank" rel="noreferrer" className="primary-action mt-7 inline-flex h-13 w-full items-center justify-center gap-2 rounded-xl px-4 text-base font-bold">
                 Відкрити Google Calendar <ExternalLink className="size-4" />
               </a>
               <button type="button" onClick={() => { setPhase('review'); setError(''); }} className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground">
@@ -360,8 +360,8 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="relative z-10 border-t border-white/[0.075] bg-black/10">
-        <div className="mx-auto grid w-full max-w-7xl gap-px px-5 py-10 sm:px-8 md:grid-cols-3 lg:px-10">
+      <section className="steps-section relative z-10 mx-auto mb-5 w-[calc(100%-2rem)] max-w-7xl">
+        <div className="mx-auto grid w-full gap-px px-5 py-5 sm:px-8 md:grid-cols-3 lg:px-8">
           {steps.map(([number, title, description], index) => (
             <article className="how-step" key={number}>
               <div className="flex items-center gap-3"><span className="step-number">{number}</span>{index < 2 && <span className="hidden h-px flex-1 bg-white/10 md:block" />}</div>
@@ -372,7 +372,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="relative z-10 mx-auto flex w-full max-w-7xl flex-col gap-3 px-5 py-7 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-10">
+      <footer className="site-footer relative z-10 mx-auto mb-5 flex w-[calc(100%-2rem)] max-w-7xl flex-col gap-3 px-5 py-5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <p>Неофіційний інструмент для студентів КПІ ім. Ігоря Сікорського.</p>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <a href="mailto:roman.tkachenko.vv@gmail.com" className="hover:text-foreground">roman.tkachenko.vv@gmail.com</a>
